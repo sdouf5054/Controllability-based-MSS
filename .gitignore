@@ -4,7 +4,7 @@
 .DS_Store
 Thumbs.db
 
-# VS Code (원하시면 settings.json만 남길 수도 있음)
+# VS Code
 .vscode/*
 !.vscode/settings.json
 
