@@ -1,0 +1,64 @@
+# ========================
+# Editor / OS
+# ========================
+.DS_Store
+Thumbs.db
+
+# VS Code (원하시면 settings.json만 남길 수도 있음)
+.vscode/*
+!.vscode/settings.json
+
+# ========================
+# Python caches
+# ========================
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+.ruff_cache/
+
+# ========================
+# Project folders to exclude (your tree)
+# ========================
+Dataset/
+cache/
+metadata/
+outputs/
+results/
+external/
+
+# ========================
+# Environments / secrets
+# ========================
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# ========================
+# Large / binary artifacts
+# ========================
+# audio
+*.wav
+*.flac
+*.mp3
+*.m4a
+*.ogg
+
+# models / arrays
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npy
+*.npz
+*.pkl
+
+# archives
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
