@@ -1,0 +1,144 @@
+# FLX4-Net v3.1-lite Track A Configuration
+# ==========================================
+# Project: CMSS_v1
+# System: Windows 11, RTX 4060 Laptop (8GB), CUDA 12.6
+# ==========================================
+
+# === Paths ===
+# 모든 경로는 CMSS_v1 폴더 기준 상대 경로
+paths:
+  # 데이터셋 (이미 존재)
+  musdb_root: "./Dataset/musdb18hq"
+  medleyvox_root: "./Dataset/MedleyVox"
+  
+  # 출력 디렉토리 (자동 생성됨)
+  output_root: "./outputs"
+  cache_root: "./cache"
+  metadata_root: "./metadata"
+  tables_root: "./tables"
+  results_root: "./results"
+  
+  # 외부 도구
+  mss_root: "./external/Music-Source-Separation-Training"
+
+# === Audio ===
+audio:
+  sample_rate: 44100
+  mono: true
+
+# === Segmentation ===
+# Window N = 3.0s, Hop H = 1.5s (50% overlap)
+# Blueprint 정책: 고정값, sensitivity check는 선택적
+segmentation:
+  window_sec: 3.0
+  hop_sec: 1.5
+
+# === Silence ===
+# Policy: flag_and_separate
+# - Primary 분석: is_silent=False만 사용
+# - Supplementary 분석: is_silent=True 별도 요약
+silence:
+  initial_threshold_db: -40
+  calibration_method: "gap_or_5th_percentile"  # "gap_or_5th_percentile" | "fixed"
+  percentile_cutoff: 5
+
+# === Separator ===
+# Music-Source-Separation-Training 사용
+separator:
+  name: "htdemucs"
+  model: "htdemucs"
+  
+  # 출력 정렬 정책 (Blueprint 확정)
+  # separator 출력과 GT 길이가 다를 때: 짧은 쪽으로 truncate
+  output_alignment: "truncate_to_shorter"
+  max_length_diff_samples: 1000  # ~23ms at 44.1kHz, 초과시 warning
+  
+  # MSS Training inference 설정
+  mss_config_path: "./Music-Source-Separation-Training/configs/config_musdb18_htdemucs.yaml"
+  device_ids: [0]  # GPU 0 사용
+
+# === Beat Tracking ===
+# Priority: essentia > madmom > librosa
+# Blueprint 정책: unavailable은 NaN + coverage 보고
+beat_tracking:
+  backend: "librosa"  # "essentia" | "madmom" | "librosa"
+  
+  # Track-level unavailable 규칙
+  min_beats_per_track: 8
+  
+  # Segment-level unavailable 규칙
+  min_beats_per_segment: 2
+  
+  # Essentia 설정 (confidence 제공)
+  essentia:
+    min_confidence: 0.1
+  
+  # madmom fallback 설정
+  madmom:
+    min_beats_per_minute: 0.5
+    max_ibi_cv: 0.5  # inter-beat interval coefficient of variation
+  
+  # librosa fallback 설정  
+  librosa:
+    units: "time"  # beat_track 반환 단위
+
+# === Cues ===
+# 4개 축: Repetition, Beat sync, Structure, Processing
+cues:
+  # Similarity backend (r, s 공용)
+  # Blueprint: log-mel + L2 normalize + cosine
+  similarity:
+    n_mels: 128
+    n_fft: 2048
+    hop_length: 512
+    fmin: 20
+    fmax: 8000
+    pooling: "mean"       # "mean" | "median"
+    normalize: "l2"
+    metric: "cosine"
+  
+  # Repetition r(t): 근거리, 과거 12초 이내만
+  # Blueprint 방어선: 후보 생성에서 제약 강제
+  repetition:
+    max_lookback_sec: 12.0
+    aggregation: "max"    # "max" | "top_k_mean"
+    top_k: 3
+  
+  # Structure s(t): 원거리, 30초 이상 떨어진 것만
+  # Blueprint 방어선: r-s 분리를 코드에서 강제
+  structure:
+    min_distance_sec: 30.0
+    aggregation: "top_k_mean"
+    top_k: 3
+  
+  # Beat synchrony b(t)
+  beat_sync:
+    tolerance_sec: 0.070  # ±70ms
+  
+  # Processing p(t): weak auxiliary cue
+  processing:
+    enabled: true
+
+# === Difficulty Metrics ===
+# Blueprint: SI-SDR primary, SDR reference
+metrics:
+  primary: "sisdr"
+  compute_sdr: true  # SDR도 함께 계산 (cherry-picking 방어)
+
+# === Analysis ===
+analysis:
+  correlation_method: "spearman"
+  figure_format: "png"
+  figure_dpi: 150
+
+# === Cross-validation ===
+# Track-level fold split (곡 단위)
+cv:
+  n_folds: 5
+  random_seed: 42  # 재현성
+
+# === Logging ===
+logging:
+  level: "INFO"  # "DEBUG" | "INFO" | "WARNING"
+  save_logs: true
+  log_dir: "./logs"

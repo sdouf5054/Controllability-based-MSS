@@ -1,0 +1,119 @@
+# environment.yml
+# FLX4-Net Track A 실험 환경
+# ==========================================
+# Target: Windows 11, RTX 4060 Laptop (8GB), CUDA 12.6, Driver 561.09
+# Created: 2026-01-23
+# ==========================================
+
+name: flx4net
+
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  # ============================================
+  # Python
+  # 3.10 권장 (torch.compile 완전 지원)
+  # ============================================
+  - python=3.10
+  
+  # ============================================
+  # PyTorch + CUDA
+  # - PyTorch 2.2+: 최신 기능 + 안정성
+  # - CUDA 12.1 빌드: 12.6 드라이버와 호환
+  # - RTX 4060 (Ada Lovelace, SM 8.9) 완전 지원
+  # ============================================
+  - pytorch>=2.2
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  
+  # ============================================
+  # Audio Processing
+  # ============================================
+  - librosa>=0.10
+  - pysoundfile
+  - audioread
+  - ffmpeg                # 다양한 오디오 포맷 지원
+  
+  # ============================================
+  # Data & Analysis
+  # ============================================
+  - numpy>=1.24,<2.0      # numpy 2.0은 일부 호환성 이슈
+  - pandas>=2.0
+  - scipy>=1.11
+  - pyarrow               # parquet 지원
+  - scikit-learn          # 분석용
+  
+  # ============================================
+  # Visualization
+  # ============================================
+  - matplotlib>=3.7
+  - seaborn
+  
+  # ============================================
+  # Utilities
+  # ============================================
+  - pyyaml
+  - tqdm
+  - requests
+  - rich                  # 예쁜 콘솔 출력
+  
+  # ============================================
+  # Development
+  # ============================================
+  - ipykernel             # Jupyter in VS Code
+  - pytest
+  - black
+  - ruff
+  
+  # ============================================
+  # Beat Tracking
+  # Essentia: confidence 제공 (1순위)
+  # Windows에서 설치 실패 시 pip로 재시도
+  # ============================================
+  # - essentia
+  
+  # ============================================
+  # pip 전용 패키지
+  # conda에 없거나 pip 버전이 더 나은 것들
+  # ============================================
+  - pip
+  - pip:
+      # === SDR/SI-SDR 계산 ===
+      - mir_eval
+      
+      # === MUSDB18 데이터셋 접근 ===
+      - musdb>=0.4
+      - stempeg
+      
+      # === Beat tracking fallback ===
+      - Cython
+      - madmom
+      
+      # === Music-Source-Separation-Training 의존성 ===
+      - einops
+      - rotary_embedding_torch
+      - ml_collections
+      - beartype
+      - segmentation-models-pytorch
+      - timm>=0.9
+      
+      # === 추가 유틸리티 ===
+      - pretty_midi         # MIDI 처리 (옵션)
+
+# ============================================
+# 설치 명령어:
+#   micromamba create -f environment.yml -y
+#   micromamba activate flx4net
+#
+# 환경 잠금 (설치 후):
+#   micromamba env export -n flx4net > environment_lock.yml
+#
+# Essentia 설치 실패 시:
+#   pip install essentia
+#   또는 madmom만 사용
+# ============================================
