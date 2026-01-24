@@ -158,20 +158,20 @@ def compute_segment_rms(
         track_segments = df[track_mask]
         
         for idx in track_segments.index:
-            start_sample = df.loc[idx, 'start_sample']
-            end_sample = df.loc[idx, 'end_sample']
+            start_sample: int = int(df.at[idx, 'start_sample'])  # type: ignore[arg-type]
+            end_sample: int = int(df.at[idx, 'end_sample'])  # type: ignore[arg-type]
             
             # Handle edge case where segment exceeds audio length
             if end_sample > len(audio):
                 end_sample = len(audio)
             
             if start_sample >= end_sample:
-                df.loc[idx, 'gt_vocal_rms_db'] = -100.0
+                df.at[idx, 'gt_vocal_rms_db'] = -100.0
                 continue
             
             segment_audio = audio[start_sample:end_sample]
             rms_db = compute_rms_db(segment_audio)
-            df.loc[idx, 'gt_vocal_rms_db'] = rms_db
+            df.at[idx, 'gt_vocal_rms_db'] = rms_db
     
     return df
 
@@ -215,7 +215,7 @@ def calibrate_and_flag_silence(
     Returns:
         (updated_df, calibration_result)
     """
-    rms_values = segments_df['gt_vocal_rms_db'].values
+    rms_values = np.asarray(segments_df['gt_vocal_rms_db'].values)
     
     # Calibrate threshold
     final_threshold, calibration_method, rms_stats = calibrate_silence_threshold(
