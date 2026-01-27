@@ -134,7 +134,6 @@ def run_mss_inference(
 
     if extract_instrumental:
         cmd.append("--extract_instrumental")
-
     # Run inference
     try:
         result = subprocess.run(
@@ -269,7 +268,6 @@ def separate_track(
         # Create temp output folder
         temp_output_dir = cache_root / "temp_output"
         temp_output_dir.mkdir(parents=True, exist_ok=True)
-        print("asdad" + str(mss_root))
 
         success = run_mss_inference(
             input_path=temp_input_path,

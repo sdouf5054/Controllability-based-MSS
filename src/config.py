@@ -17,7 +17,7 @@ class PathsConfig:
 
     musdb_root: str
     medleyvox_root: str = "./Dataset/MedleyVox"
-    mss_root: str = "./external/Music-Source-Separation-Training"  # YAML uses mss_root
+    mss_root: str = "./Music-Source-Separation-Training"  # YAML uses mss_root
     output_root: str = "./outputs"
     cache_root: str = "./cache"
     metadata_root: str = "./metadata"
@@ -27,31 +27,31 @@ class PathsConfig:
     @property
     def musdb_path(self) -> Path:
         return Path(self.musdb_root)
-
+    
     @property
     def medleyvox_path(self) -> Path:
         return Path(self.medleyvox_root)
-
+    
     @property
     def mss_path(self) -> Path:
         return Path(self.mss_root)
-
+    
     @property
     def output_path(self) -> Path:
         return Path(self.output_root)
-
+    
     @property
     def cache_path(self) -> Path:
         return Path(self.cache_root)
-
+    
     @property
     def metadata_path(self) -> Path:
         return Path(self.metadata_root)
-
+    
     @property
     def tables_path(self) -> Path:
         return Path(self.tables_root)
-
+    
     @property
     def results_path(self) -> Path:
         return Path(self.results_root)
@@ -113,10 +113,7 @@ class SilenceConfig:
     """
 
     initial_threshold_db: float = -40.0
-    calibration_method: Literal["gap_or_5th_percentile", "fixed"] = (
-        "gap_or_5th_percentile"
-    )
-
+    calibration_method: Literal["gap_or_5th_percentile", "fixed"] = "gap_or_5th_percentile"
     percentile_cutoff: float = 5.0
 
 
@@ -126,11 +123,11 @@ class SeparatorConfig:
 
     name: str = "htdemucs"
     model: str = "htdemucs"
-    output_alignment: Literal["truncate_to_shorter", "pad_to_longer"] = (
-        "truncate_to_shorter"
-    )
+    output_alignment: Literal["truncate_to_shorter", "pad_to_longer"] = "truncate_to_shorter"
     max_length_diff_samples: int = 1000
-    mss_config_path: str = ""
+    config_path: str = ""  # MSS model config yaml
+    checkpoint_path: str = ""  # MSS model checkpoint
+    mss_config_path: str = ""  # Alias for config_path (backward compat)
     device_ids: list = field(default_factory=lambda: [0])
 
 
@@ -152,7 +149,7 @@ class MadmomConfig:
 @dataclass
 class LibrosaConfig:
     """Librosa-specific beat tracking config."""
-
+    
     units: str = "time"
 
 
@@ -286,7 +283,7 @@ class TrackAConfig:
         audio = AudioConfig(**raw.get("audio", {}))
         segmentation = SegmentationConfig(**raw.get("segmentation", {}))
         silence = SilenceConfig(**raw.get("silence", {}))
-
+        
         # Separator config - handle both old and new field names
         sep_raw = raw.get("separator", {})
         separator = SeparatorConfig(
@@ -294,10 +291,10 @@ class TrackAConfig:
             model=sep_raw.get("model", sep_raw.get("model_type", "htdemucs")),
             output_alignment=sep_raw.get("output_alignment", "truncate_to_shorter"),
             max_length_diff_samples=sep_raw.get("max_length_diff_samples", 1000),
-            mss_config_path=sep_raw.get(
-                "mss_config_path", sep_raw.get("config_path", "")
-            ),
-            device_ids=sep_raw.get("device_ids", [0]),
+            config_path=sep_raw.get("config_path", sep_raw.get("mss_config_path", "")),
+            checkpoint_path=sep_raw.get("checkpoint_path", ""),
+            mss_config_path=sep_raw.get("mss_config_path", sep_raw.get("config_path", "")),
+            device_ids=sep_raw.get("device_ids", [0])
         )
 
         # Beat tracking with nested configs
@@ -339,8 +336,9 @@ class TrackAConfig:
     def to_dict(self) -> dict:
         """Convert config to dictionary (for logging/saving)."""
         import dataclasses
+        from typing import Any
 
-        def _to_dict(obj):
+        def _to_dict(obj: Any) -> Any:
             if dataclasses.is_dataclass(obj):
                 return {k: _to_dict(v) for k, v in dataclasses.asdict(obj).items()}
             elif isinstance(obj, Path):
@@ -348,7 +346,8 @@ class TrackAConfig:
             else:
                 return obj
 
-        return _to_dict(self)
+        result: dict = _to_dict(self)  # type: ignore[assignment]
+        return result
 
 
 # Convenience function
@@ -377,9 +376,7 @@ if __name__ == "__main__":
         print(f"MUSDB root: {config.paths.musdb_root}")
         print(f"MSS root: {config.paths.mss_root}")
         print(f"Sample rate: {config.audio.sample_rate}")
-        print(
-            f"Segment: {config.segmentation.window_sec}s window, {config.segmentation.hop_sec}s hop"
-        )
+        print(f"Segment: {config.segmentation.window_sec}s window, {config.segmentation.hop_sec}s hop")
         print(f"Silence threshold: {config.silence.initial_threshold_db} dB")
         print(f"Beat backend: {config.beat_tracking.backend}")
         print(f"r(t) lookback: {config.cues.repetition.max_lookback_sec}s")

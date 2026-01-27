@@ -54,7 +54,8 @@ separator:
   max_length_diff_samples: 1000  # ~23ms at 44.1kHz, 초과시 warning
   
   # MSS Training inference 설정
-  mss_config_path: "./Music-Source-Separation-Training/configs/config_musdb18_htdemucs.yaml"
+  config_path: "./external/Music-Source-Separation-Training/configs/config_vocals_htdemucs.yaml"
+  checkpoint_path: "./external/Music-Source-Separation-Training/weights/model_vocals_htdemucs_sdr_8.78.ckpt"
   device_ids: [0]  # GPU 0 사용
 
 # === Beat Tracking ===
