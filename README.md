@@ -7,3 +7,13 @@
 ## Track A (current)
 Pipeline (tables):
 manifest → segments → separation → beat tracking → difficulty → proxies → cues → analysis
+
+### What Track A produces
+- **difficulty(t)**: separation difficulty estimate per segment
+- **proxies(t)**: proxy features related to controllability
+- **cues(t)**:
+  - **r(t)** repetition cue
+  - **s(t)** structure cue
+  - **b(t)** beat-sync cue
+  - **p(t)** processing cue
+- **analysis**: summary statistics + plots for Track A outputs
