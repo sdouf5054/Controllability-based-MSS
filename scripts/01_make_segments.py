@@ -146,6 +146,7 @@ def main():
     parser.add_argument(
         "--dry-run", action="store_true", help="Print what would be done without saving"
     )
+    parser.add_argument("--force", action="store_true", help="Overwrite existing files")
     args = parser.parse_args()
 
     print("=" * 50)
@@ -158,6 +159,13 @@ def main():
 
     # Create directories
     config.paths.ensure_dirs()
+
+    # Check existing file
+    output_path = Path(config.paths.tables_root) / "segments_trackA.parquet"
+    if output_path.exists() and not args.force and not args.dry_run:
+        print(f"\nOutput exists: {output_path}")
+        print("Use --force to overwrite")
+        return
 
     # Load manifest
     manifest_path = (

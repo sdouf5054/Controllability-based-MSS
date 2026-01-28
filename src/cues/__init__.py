@@ -14,14 +14,14 @@ from .embedding import (
     compute_cosine_similarity,
     compute_similarity_matrix,
     compute_track_embeddings,
-    EmbeddingComputer
+    EmbeddingComputer,
 )
 
 from .repetition import (
     get_repetition_candidates,
     compute_repetition_cue,
     compute_track_repetition,
-    RepetitionComputer
+    RepetitionComputer,
 )
 
 from .structure import (
@@ -29,7 +29,7 @@ from .structure import (
     compute_structure_cue,
     compute_track_structure,
     analyze_structure_coverage,
-    StructureComputer
+    StructureComputer,
 )
 
 from .beat_sync import (
@@ -37,14 +37,14 @@ from .beat_sync import (
     get_beats_in_segment,
     compute_onset_beat_alignment,
     compute_beat_sync_cue,
-    BeatSyncComputer
+    BeatSyncComputer,
 )
 
 from .processing import (
     compute_spectral_features,
     compute_processing_cue,
     ProcessingComputer,
-    calibrate_normalization_params
+    calibrate_normalization_params,
 )
 
 __all__ = [

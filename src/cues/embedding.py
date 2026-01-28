@@ -59,6 +59,15 @@ def compute_log_mel_spectrogram(
     # Convert to log scale (dB)
     log_mel = librosa.power_to_db(mel_spec + 1e-10, ref=np.max)
     
+    # Normalize to [0, 1] range per segment
+    # This prevents all embeddings from being in the same negative region
+    log_mel_min = log_mel.min()
+    log_mel_max = log_mel.max()
+    if log_mel_max - log_mel_min > 1e-6:
+        log_mel = (log_mel - log_mel_min) / (log_mel_max - log_mel_min)
+    else:
+        log_mel = np.zeros_like(log_mel)
+    
     return log_mel
 
 
@@ -128,7 +137,7 @@ def compute_segment_embedding(
     """Compute embedding for a single audio segment.
     
     Pipeline:
-        audio → log-mel → pool → normalize → embedding
+        audio → log-mel → pool → zero-mean → L2 normalize → embedding
     
     Args:
         audio: Audio segment (1D)
@@ -157,7 +166,11 @@ def compute_segment_embedding(
     # Pool over time
     embedding = pool_spectrogram(log_mel, method=pooling)
     
-    # Normalize
+    # Zero-mean normalization (critical for distinguishing different content!)
+    # This removes the "DC offset" that makes all embeddings similar
+    embedding = embedding - np.mean(embedding)
+    
+    # L2 normalize
     embedding = normalize_embedding(embedding, method=normalize)
     
     return embedding

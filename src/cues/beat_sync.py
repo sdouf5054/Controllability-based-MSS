@@ -126,6 +126,65 @@ def compute_onset_beat_alignment(
     return aligned_count / len(onset_times)
 
 
+def compute_energy_beat_alignment(
+    audio: np.ndarray,
+    beat_times: np.ndarray,
+    sr: int = 44100,
+    hop_length: int = 512,
+    window_sec: float = 0.05
+) -> float:
+    """Compute beat sync using energy ratio method.
+    
+    Measures what fraction of onset-strength energy falls near beats.
+    More robust than onset counting - less sensitive to detection errors.
+    
+    Args:
+        audio: Audio signal (1D)
+        beat_times: Array of beat times (seconds)
+        sr: Sample rate
+        hop_length: Hop length for onset strength
+        window_sec: Window around each beat (±window_sec)
+        
+    Returns:
+        Energy ratio score in [0, 1]
+    """
+    import librosa
+    
+    if len(audio) == 0 or np.max(np.abs(audio)) < 1e-10:
+        return 0.0
+    
+    if len(beat_times) == 0:
+        return 0.0
+    
+    # Compute onset strength envelope
+    onset_env = librosa.onset.onset_strength(
+        y=audio,
+        sr=sr,
+        hop_length=hop_length
+    )
+    
+    total_energy = np.sum(onset_env)
+    if total_energy < 1e-10:
+        return 0.0
+    
+    # Window size in frames
+    window_frames = int(window_sec * sr / hop_length)
+    
+    # Create mask for beat-adjacent frames
+    beat_mask = np.zeros(len(onset_env), dtype=bool)
+    
+    for beat_time in beat_times:
+        beat_frame = librosa.time_to_frames(beat_time, sr=sr, hop_length=hop_length)
+        start = max(0, beat_frame - window_frames)
+        end = min(len(onset_env), beat_frame + window_frames + 1)
+        beat_mask[start:end] = True
+    
+    # Energy near beats (avoid double-counting with mask)
+    beat_energy = np.sum(onset_env[beat_mask])
+    
+    return min(1.0, beat_energy / total_energy)
+
+
 def compute_beat_sync_cue(
     vocal_audio: np.ndarray,
     beat_times: np.ndarray,
@@ -134,9 +193,15 @@ def compute_beat_sync_cue(
     sr: int = 44100,
     tolerance_sec: float = 0.070,
     min_beats: int = 2,
-    min_onsets: int = 1
+    min_onsets: int = 1,
+    method: str = "onset_ratio",
+    energy_window_sec: float = 0.05
 ) -> Tuple[Optional[float], bool, Dict]:
     """Compute beat synchrony cue b(t) for a segment.
+    
+    Two methods available:
+    - "onset_ratio": Ratio of aligned onsets to total onsets (original)
+    - "energy_ratio": Ratio of onset-strength energy near beats (more robust)
     
     Args:
         vocal_audio: Segment vocal audio
@@ -144,9 +209,11 @@ def compute_beat_sync_cue(
         start_sec: Segment start time
         end_sec: Segment end time
         sr: Sample rate
-        tolerance_sec: Alignment tolerance
+        tolerance_sec: Alignment tolerance (for onset_ratio method)
         min_beats: Minimum beats required
-        min_onsets: Minimum onsets required
+        min_onsets: Minimum onsets required (for onset_ratio method)
+        method: "onset_ratio" or "energy_ratio"
+        energy_window_sec: Window around beats (for energy_ratio method)
         
     Returns:
         Tuple of:
@@ -154,7 +221,7 @@ def compute_beat_sync_cue(
             - available: Whether b(t) was computable
             - info: Dictionary with debug info
     """
-    info = {}
+    info = {'method': method}
     
     # Get beats in segment
     segment_beats = get_beats_in_segment(beat_times, start_sec, end_sec)
@@ -165,45 +232,52 @@ def compute_beat_sync_cue(
         info['unavailable_reason'] = f"too_few_beats ({len(segment_beats)} < {min_beats})"
         return None, False, info
     
-    # Detect onsets in vocal
-    onset_times_abs = detect_vocal_onsets(vocal_audio, sr=sr)
+    if method == "energy_ratio":
+        # Energy-based method (more robust)
+        b_value = compute_energy_beat_alignment(
+            audio=vocal_audio,
+            beat_times=segment_beats - start_sec,  # Convert to segment-relative
+            sr=sr,
+            window_sec=energy_window_sec
+        )
+        info['energy_ratio'] = b_value
+        return b_value, True, info
     
-    # Convert to absolute times (relative to track start)
-    onset_times = onset_times_abs + start_sec
-    info['n_onsets'] = len(onset_times)
-    
-    # Check onset availability
-    if len(onset_times) < min_onsets:
-        info['unavailable_reason'] = f"too_few_onsets ({len(onset_times)} < {min_onsets})"
-        # Still return a value (0) but mark as available
-        # since this is a valid measurement (no onsets = no sync)
-        return 0.0, True, info
-    
-    # Compute alignment
-    b_value = compute_onset_beat_alignment(
-        onset_times=onset_times,
-        beat_times=segment_beats,
-        tolerance_sec=tolerance_sec
-    )
-    
-    info['alignment_score'] = b_value
-    
-    return b_value, True, info
+    else:  # onset_ratio (original method)
+        # Detect onsets in vocal
+        onset_times_abs = detect_vocal_onsets(vocal_audio, sr=sr)
+        
+        # Convert to absolute times (relative to track start)
+        onset_times = onset_times_abs + start_sec
+        info['n_onsets'] = len(onset_times)
+        
+        # Check onset availability
+        if len(onset_times) < min_onsets:
+            info['unavailable_reason'] = f"too_few_onsets ({len(onset_times)} < {min_onsets})"
+            return 0.0, True, info
+        
+        # Compute alignment
+        b_value = compute_onset_beat_alignment(
+            onset_times=onset_times,
+            beat_times=segment_beats,
+            tolerance_sec=tolerance_sec
+        )
+        
+        info['alignment_score'] = b_value
+        return b_value, True, info
 
 
 class BeatSyncComputer:
     """Computes beat synchrony cue b(t) for track segments.
     
+    Two methods available:
+    - "onset_ratio": Ratio of aligned onsets to total onsets (original)
+    - "energy_ratio": Ratio of onset-strength energy near beats (more robust)
+    
     Usage:
-        computer = BeatSyncComputer(tolerance_sec=0.070, min_beats=2)
-        
-        # Set track data
+        computer = BeatSyncComputer(method="energy_ratio")
         computer.set_track_data(vocal_audio, beat_times)
-        
-        # Compute for segment
-        b_value, available, info = computer.compute_segment(
-            start_sec, end_sec, start_sample, end_sample
-        )
+        b_value, available, info = computer.compute_segment(...)
     """
     
     def __init__(
@@ -211,20 +285,26 @@ class BeatSyncComputer:
         sr: int = 44100,
         tolerance_sec: float = 0.070,
         min_beats: int = 2,
-        min_onsets: int = 1
+        min_onsets: int = 1,
+        method: str = "onset_ratio",
+        energy_window_sec: float = 0.05
     ):
         """Initialize BeatSyncComputer.
         
         Args:
             sr: Sample rate
-            tolerance_sec: Alignment tolerance (Blueprint: 70ms)
+            tolerance_sec: Alignment tolerance (for onset_ratio)
             min_beats: Minimum beats per segment
-            min_onsets: Minimum onsets per segment
+            min_onsets: Minimum onsets per segment (for onset_ratio)
+            method: "onset_ratio" or "energy_ratio"
+            energy_window_sec: Window around beats (for energy_ratio)
         """
         self.sr = sr
         self.tolerance_sec = tolerance_sec
         self.min_beats = min_beats
         self.min_onsets = min_onsets
+        self.method = method
+        self.energy_window_sec = energy_window_sec
         
         # Track data
         self._vocal_audio: Optional[np.ndarray] = None
@@ -276,7 +356,9 @@ class BeatSyncComputer:
             sr=self.sr,
             tolerance_sec=self.tolerance_sec,
             min_beats=self.min_beats,
-            min_onsets=self.min_onsets
+            min_onsets=self.min_onsets,
+            method=self.method,
+            energy_window_sec=self.energy_window_sec
         )
     
     def compute_track(
