@@ -151,6 +151,8 @@ def compute_cues_for_track(
         sr=sr,
         tolerance_sec=config.cues.beat_sync.tolerance_sec,
         min_beats=config.beat_tracking.min_beats_per_segment,
+        method="energy_ratio",
+        energy_window_sec=0.05,
     )
 
     processing_computer = ProcessingComputer(sr=sr)

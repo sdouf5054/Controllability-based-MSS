@@ -115,7 +115,9 @@ cues:
   # Beat synchrony b(t)
   beat_sync:
     tolerance_sec: 0.070  # ±70ms
-  
+    # method: "energy_ratio"      # "onset_ratio" or "energy_ratio" not fully implemented
+    # energy_window_sec: 0.05
+
   # Processing p(t): weak auxiliary cue
   processing:
     enabled: true
